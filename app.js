@@ -3,11 +3,10 @@ const input = document.querySelector("#q");
 const button = form.querySelector("button");
 const results = document.querySelector("#results");
 
-const BRAVE_ENDPOINT = "https://api.search.brave.com/res/v1/web/search";
+const DUCKDUCKGO_ENDPOINT = "https://api.duckduckgo.com/";
 
 const params = new URLSearchParams(window.location.search);
 const initialQuery = params.get("q") || "";
-const initialToken = params.get("token") || window.localStorage.getItem("brave_api_key") || "";
 
 input.value = initialQuery;
 
@@ -42,7 +41,7 @@ async function runSearch(query) {
   button.disabled = true;
 
   try {
-    const items = await searchBrave(query);
+    const items = await searchDuckDuckGo(query);
     renderResults(items, query);
   } catch (error) {
     setStatus(error.message || "Search failed.");
@@ -52,38 +51,51 @@ async function runSearch(query) {
   }
 }
 
-async function searchBrave(query) {
-  const token = getBraveToken();
-  if (!token) {
-    throw new Error('Brave API key missing. Set localStorage.brave_api_key or add ?token=YOUR_KEY once.');
-  }
-
-  const url = new URL(BRAVE_ENDPOINT);
+async function searchDuckDuckGo(query) {
+  const url = new URL(DUCKDUCKGO_ENDPOINT);
   url.searchParams.set("q", query);
-  url.searchParams.set("count", "10");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("no_html", "1");
+  url.searchParams.set("no_redirect", "1");
+  url.searchParams.set("skip_disambig", "1");
 
   const response = await fetchWithTimeout(url.toString(), {
     headers: {
-      accept: "application/json",
-      "x-subscription-token": token
+      accept: "application/json"
     },
     cache: "no-store"
   });
 
   if (!response.ok) {
-    throw new Error(`${response.status} from Brave`);
+    throw new Error(`${response.status} from DuckDuckGo`);
   }
 
   const data = await response.json();
-  if (!data || !data.web || !Array.isArray(data.web.results)) {
-    throw new Error("Unexpected Brave response.");
+  if (!data) {
+    throw new Error("Unexpected DuckDuckGo response.");
   }
 
-  return data.web.results.map((item) => ({
-    title: item.title || "",
-    url: item.url,
-    content: item.description || ""
-  }));
+  const items = [];
+
+  if (data.AbstractText && data.AbstractURL) {
+    items.push({
+      title: data.Heading || query,
+      url: data.AbstractURL,
+      content: data.AbstractText
+    });
+  }
+
+  for (const topic of flattenDuckDuckGoTopics(data.RelatedTopics || [])) {
+    if (topic && topic.FirstURL && topic.Text) {
+      items.push({
+        title: topic.Text.split(" - ")[0] || topic.Text,
+        url: topic.FirstURL,
+        content: topic.Text
+      });
+    }
+  }
+
+  return items;
 }
 
 async function fetchWithTimeout(url, options = {}, timeout = 8000) {
@@ -143,16 +155,12 @@ function escapeHtml(value) {
   });
 }
 
-function joinParts(parts) {
-  if (typeof parts === "string") return parts;
-  if (!Array.isArray(parts)) return "";
-  return parts.map((part) => part.value || "").join("");
-}
+function flattenDuckDuckGoTopics(topics) {
+  return topics.flatMap((topic) => {
+    if (topic && Array.isArray(topic.Topics)) {
+      return flattenDuckDuckGoTopics(topic.Topics);
+    }
 
-function getBraveToken() {
-  return (
-    window.localStorage.getItem("brave_api_key") ||
-    new URLSearchParams(window.location.search).get("token") ||
-    initialToken
-  );
+    return [topic];
+  });
 }
