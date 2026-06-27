@@ -3,10 +3,11 @@ const input = document.querySelector("#q");
 const button = form.querySelector("button");
 const results = document.querySelector("#results");
 
-const MWMBL_ENDPOINT = "https://api.mwmbl.org/search";
+const BRAVE_ENDPOINT = "https://api.search.brave.com/res/v1/web/search";
 
 const params = new URLSearchParams(window.location.search);
 const initialQuery = params.get("q") || "";
+const initialToken = params.get("token") || window.localStorage.getItem("brave_api_key") || "";
 
 input.value = initialQuery;
 
@@ -41,38 +42,47 @@ async function runSearch(query) {
   button.disabled = true;
 
   try {
-    const items = await searchMwmbl(query);
+    const items = await searchBrave(query);
     renderResults(items, query);
   } catch (error) {
-    setStatus(`Search failed: ${error.message || "the search API did not respond."}`);
+    setStatus(error.message || "Search failed.");
     console.error(error);
   } finally {
     button.disabled = false;
   }
 }
 
-async function searchMwmbl(query) {
-  const url = new URL(MWMBL_ENDPOINT);
-  url.searchParams.set("s", query);
+async function searchBrave(query) {
+  const token = getBraveToken();
+  if (!token) {
+    throw new Error('Brave API key missing. Set localStorage.brave_api_key or add ?token=YOUR_KEY once.');
+  }
+
+  const url = new URL(BRAVE_ENDPOINT);
+  url.searchParams.set("q", query);
+  url.searchParams.set("count", "10");
 
   const response = await fetchWithTimeout(url.toString(), {
-    headers: { accept: "application/json" },
+    headers: {
+      accept: "application/json",
+      "x-subscription-token": token
+    },
     cache: "no-store"
   });
 
   if (!response.ok) {
-    throw new Error(`${response.status} from Mwmbl`);
+    throw new Error(`${response.status} from Brave`);
   }
 
   const data = await response.json();
-  if (!Array.isArray(data)) {
-    throw new Error("Unexpected Mwmbl response.");
+  if (!data || !data.web || !Array.isArray(data.web.results)) {
+    throw new Error("Unexpected Brave response.");
   }
 
-  return data.map((item) => ({
-    title: joinParts(item.title),
+  return data.web.results.map((item) => ({
+    title: item.title || "",
     url: item.url,
-    content: joinParts(item.extract)
+    content: item.description || ""
   }));
 }
 
@@ -137,4 +147,12 @@ function joinParts(parts) {
   if (typeof parts === "string") return parts;
   if (!Array.isArray(parts)) return "";
   return parts.map((part) => part.value || "").join("");
+}
+
+function getBraveToken() {
+  return (
+    window.localStorage.getItem("brave_api_key") ||
+    new URLSearchParams(window.location.search).get("token") ||
+    initialToken
+  );
 }
