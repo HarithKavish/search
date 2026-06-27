@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Search</title>
+    <meta name="description" content="A lightweight search page for harithkavish.com">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <form class="search" id="search-form" role="search">
+        <label class="sr-only" for="q">Search the web</label>
+        <input id="q" name="q" type="search" autocomplete="off" spellcheck="false" autofocus placeholder="Search">
+        <button type="submit">Search</button>
+      </form>
+
+      <section class="results" id="results" aria-live="polite"></section>
+    </main>
+
+    <script src="search.js"></script>
+  </body>
+</html>

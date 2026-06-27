@@ -1,0 +1,141 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fbfaf8;
+  --text: #171717;
+  --muted: #696969;
+  --line: #d8d4cd;
+  --button: #171717;
+  --button-text: #ffffff;
+  --link: #0b57d0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101010;
+    --text: #f1f1f1;
+    --muted: #a7a7a7;
+    --line: #343434;
+    --button: #f1f1f1;
+    --button-text: #101010;
+    --link: #8ab4f8;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.shell {
+  width: min(760px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 18vh 0 48px;
+}
+
+.search {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+input,
+button {
+  height: 44px;
+  border-radius: 4px;
+  font: inherit;
+}
+
+input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  padding: 0 14px;
+}
+
+button {
+  border: 1px solid var(--button);
+  background: var(--button);
+  color: var(--button-text);
+  padding: 0 18px;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.results {
+  margin-top: 34px;
+}
+
+.status {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.result {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+
+.result:first-child {
+  border-top: 0;
+}
+
+.result a {
+  color: var(--link);
+  font-size: 18px;
+  text-decoration: none;
+}
+
+.result a:hover {
+  text-decoration: underline;
+}
+
+.url {
+  margin: 6px 0;
+  color: #167b46;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.snippet {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 520px) {
+  .shell {
+    width: min(100% - 22px, 760px);
+    padding-top: 12vh;
+  }
+
+  .search {
+    grid-template-columns: 1fr;
+  }
+}
