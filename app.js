@@ -70,9 +70,9 @@ async function searchMwmbl(query) {
   }
 
   return data.map((item) => ({
-    title: joinMwmblParts(item.title),
+    title: joinParts(item.title),
     url: item.url,
-    content: joinMwmblParts(item.extract)
+    content: joinParts(item.extract)
   }));
 }
 
@@ -104,7 +104,7 @@ function renderResults(items, query) {
     .map((item) => {
       const title = escapeHtml(item.title);
       const url = escapeHtml(item.url);
-      const content = escapeHtml(item.content || item.snippet || "");
+      const content = escapeHtml(item.content || "");
 
       return `
         <article class="result">
@@ -133,7 +133,7 @@ function escapeHtml(value) {
   });
 }
 
-function joinMwmblParts(parts) {
+function joinParts(parts) {
   if (typeof parts === "string") return parts;
   if (!Array.isArray(parts)) return "";
   return parts.map((part) => part.value || "").join("");
