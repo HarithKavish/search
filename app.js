@@ -7,6 +7,8 @@ const settingsToggle = document.querySelector("#settings-toggle");
 const settingsMenu = document.querySelector("#settings-menu");
 const backgroundButton = document.querySelector("#background-button");
 const backgroundFile = document.querySelector("#background-file");
+const historyPanel = document.querySelector("#history-panel");
+const historyToggle = document.querySelector("#history-toggle");
 
 const MWMBL_ENDPOINT = "https://api.mwmbl.org/search";
 const DDG_ENDPOINT = "https://api.duckduckgo.com/";
@@ -26,6 +28,9 @@ const CORS_PROXIES = [
 const FETCH_LIMIT = 100;
 const DISPLAY_CHUNK = 25;
 const BG_KEY = "search_background_url";
+const HISTORY_KEY = "search_history_items";
+const HISTORY_ENABLED_KEY = "search_history_enabled";
+const HISTORY_LIMIT = 7;
 const params = new URLSearchParams(window.location.search);
 const initialQuery = params.get("q") || "";
 
@@ -37,10 +42,12 @@ let visibleCount = 0;
 let revealTimer = null;
 let revealTarget = 0;
 let providersPending = 0;
+let historyEnabled = window.localStorage.getItem(HISTORY_ENABLED_KEY) === "true";
 
 input.value = initialQuery;
 loadMoreButton.hidden = true;
 settingsMenu.hidden = true;
+historyToggle.checked = historyEnabled;
 applySavedBackground();
 
 settingsToggle.addEventListener("click", () => {
@@ -65,11 +72,44 @@ backgroundFile.addEventListener("change", async () => {
   applySavedBackground(dataUrl);
 });
 
+historyToggle.addEventListener("change", () => {
+  historyEnabled = historyToggle.checked;
+  window.localStorage.setItem(HISTORY_ENABLED_KEY, String(historyEnabled));
+
+  if (!historyEnabled) {
+    historyPanel.hidden = true;
+  } else if (document.activeElement === input) {
+    renderHistoryPanel();
+  }
+});
+
 window.addEventListener("click", (event) => {
   if (settingsMenu.hidden) return;
   if (settingsMenu.contains(event.target) || settingsToggle.contains(event.target)) return;
   settingsMenu.hidden = true;
   settingsToggle.setAttribute("aria-expanded", "false");
+});
+
+input.addEventListener("focus", () => {
+  renderHistoryPanel();
+});
+
+input.addEventListener("search", () => {
+  if (input.value) return;
+  resetToHome();
+});
+
+input.addEventListener("input", () => {
+  if (!input.value.trim()) {
+    renderHistoryPanel();
+  } else {
+    historyPanel.hidden = true;
+  }
+});
+
+window.addEventListener("click", (event) => {
+  if (event.target === input || historyPanel.contains(event.target)) return;
+  historyPanel.hidden = true;
 });
 
 form.addEventListener("submit", (event) => {
@@ -84,6 +124,8 @@ form.addEventListener("submit", (event) => {
   const nextUrl = new URL(window.location.href);
   nextUrl.searchParams.set("q", query);
   window.history.pushState(null, "", nextUrl);
+  saveSearch(query);
+  historyPanel.hidden = true;
   startSearch(query);
 });
 
@@ -336,6 +378,7 @@ function resetResults() {
   results.innerHTML = "";
   loadMoreButton.hidden = true;
   loadMoreButton.disabled = true;
+  historyPanel.hidden = true;
 }
 
 function applySavedBackground(overrideUrl) {
@@ -403,6 +446,66 @@ function fileToDataUrl(file) {
     reader.onerror = () => reject(reader.error || new Error("Failed to read image."));
     reader.readAsDataURL(file);
   });
+}
+
+function saveSearch(query) {
+  if (!historyEnabled) return;
+
+  const next = [
+    query,
+    ...readHistory().filter((item) => item.toLowerCase() !== query.toLowerCase())
+  ].slice(0, HISTORY_LIMIT);
+
+  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+}
+
+function readHistory() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(HISTORY_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string" && item.trim()) : [];
+  } catch {
+    return [];
+  }
+}
+
+function renderHistoryPanel() {
+  if (!historyEnabled) {
+    historyPanel.hidden = true;
+    return;
+  }
+
+  const items = readHistory();
+  if (!items.length) {
+    historyPanel.hidden = true;
+    return;
+  }
+
+  historyPanel.innerHTML = items
+    .map((item) => `<button type="button" class="history-item" data-query="${encodeURIComponent(item)}">${escapeHtml(item)}</button>`)
+    .join("");
+  historyPanel.hidden = false;
+}
+
+historyPanel.addEventListener("click", (event) => {
+  const button = event.target.closest(".history-item");
+  if (!button) return;
+
+  const query = decodeURIComponent(button.getAttribute("data-query") || "");
+  if (!query) return;
+
+  input.value = query;
+  historyPanel.hidden = true;
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set("q", query);
+  window.history.pushState(null, "", nextUrl);
+  startSearch(query);
+});
+
+function resetToHome() {
+  const homeUrl = `${window.location.origin}${window.location.pathname}`;
+  window.history.pushState(null, "", homeUrl);
+  input.value = "";
+  resetResults();
 }
 
 function enqueueResults(items, query, requestId) {

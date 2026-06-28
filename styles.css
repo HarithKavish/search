@@ -95,6 +95,7 @@ body::after {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
+  position: relative;
 }
 
 input,
@@ -167,6 +168,48 @@ button:disabled {
   background: transparent;
   color: #fff;
   text-align: left;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  color: #fff;
+}
+
+.settings-row input {
+  width: 42px;
+  height: 24px;
+  accent-color: #fff;
+}
+
+.history-panel {
+  position: relative;
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(12, 12, 12, 0.52);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.history-item {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+}
+
+.history-item + .history-item {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .more-row {

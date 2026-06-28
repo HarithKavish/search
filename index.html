@@ -13,6 +13,10 @@
     </button>
     <div class="settings-menu" id="settings-menu" hidden>
       <button type="button" id="background-button">Background</button>
+      <label class="settings-row" for="history-toggle">
+        <span>History</span>
+        <input id="history-toggle" type="checkbox" role="switch">
+      </label>
       <input id="background-file" type="file" accept="image/*" hidden>
     </div>
     <main class="shell">
@@ -21,6 +25,7 @@
         <input id="q" name="q" type="search" autocomplete="off" spellcheck="false" autofocus placeholder="Search">
         <button type="submit">Search</button>
       </form>
+      <div class="history-panel" id="history-panel" hidden></div>
 
       <section class="results" id="results" aria-live="polite"></section>
       <div class="more-row">
