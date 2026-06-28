@@ -102,7 +102,7 @@ if (initialQuery) {
   startSearch(initialQuery, false);
 }
 
-function startSearch(query, resetHistory = true) {
+function startSearch(query) {
   currentQuery = query;
   currentPage = 1;
   currentItems = [];
@@ -126,11 +126,9 @@ async function searchPage(query, page) {
     if (requestId !== activeRequestId) return;
 
     currentPage = page;
-    currentItems = mergeResults(page === 1 ? [] : currentItems, items);
+    currentItems = page === 1 ? items : mergeResults([...currentItems, ...items]);
     renderResults(currentItems, query);
-
     loadMoreButton.hidden = items.length < PAGE_SIZE;
-    loadMoreButton.disabled = false;
   } catch (error) {
     if (requestId !== activeRequestId) return;
     setStatus(error.message || "Search failed.");
@@ -146,7 +144,7 @@ async function searchPage(query, page) {
 
 async function search(query, page) {
   const [mwmbl, searxng, duckduckgo] = await Promise.allSettled([
-    searchMwmbl(query, page),
+    searchMwmbl(query),
     searchSearxng(query, page),
     page === 1 ? searchDuckDuckGo(query) : Promise.resolve([])
   ]);
@@ -158,10 +156,9 @@ async function search(query, page) {
   ]);
 }
 
-async function searchMwmbl(query, page) {
+async function searchMwmbl(query) {
   const url = new URL(MWMBL_ENDPOINT);
   url.searchParams.set("s", query);
-  url.searchParams.set("p", String(page));
 
   const response = await fetchWithTimeout(url.toString(), {
     headers: { accept: "application/json" },

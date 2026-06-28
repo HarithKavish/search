@@ -33,16 +33,29 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  position: relative;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
   background-color: var(--bg);
   background-image: var(--bg-image);
   background-size: cover;
   background-position: center center;
-  background-attachment: fixed;
-  color: var(--text);
-  position: relative;
+  background-repeat: no-repeat;
+  transform: translateZ(0);
+  will-change: transform;
+  pointer-events: none;
+  z-index: 0;
 }
 
-body::before {
+body::after {
   content: "";
   position: fixed;
   inset: 0;
@@ -114,6 +127,10 @@ button:disabled {
   width: 44px;
   padding: 0;
   border-radius: 999px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.35);
+  font-size: 22px;
 }
 
 .settings-menu {
@@ -134,7 +151,7 @@ button:disabled {
   width: 100%;
   border: 0;
   background: transparent;
-  color: var(--text);
+  color: #fff;
   text-align: left;
 }
 
