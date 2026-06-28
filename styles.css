@@ -28,6 +28,13 @@
 
 html {
   font-family: Arial, Helvetica, sans-serif;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 body {
