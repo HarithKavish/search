@@ -38,6 +38,13 @@ body {
   position: relative;
   overflow-x: hidden;
   overscroll-behavior: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 body::before {
@@ -174,6 +181,7 @@ button:disabled {
 .result {
   padding: 18px 0;
   border-top: 1px solid var(--line);
+  animation: rise-in 220ms ease-out;
 }
 
 .result:first-child {
@@ -223,5 +231,18 @@ button:disabled {
 
   .search {
     grid-template-columns: 1fr;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }

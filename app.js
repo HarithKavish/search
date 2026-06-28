@@ -23,7 +23,8 @@ const CORS_PROXIES = [
   (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
 ];
 
-const PAGE_SIZE = 12;
+const FETCH_LIMIT = 100;
+const DISPLAY_CHUNK = 25;
 const BG_KEY = "search_background_url";
 const params = new URLSearchParams(window.location.search);
 const initialQuery = params.get("q") || "";
@@ -32,6 +33,9 @@ let currentQuery = initialQuery;
 let currentPage = 1;
 let currentItems = [];
 let activeRequestId = 0;
+let visibleCount = 0;
+let revealTimer = null;
+let revealQueue = [];
 
 input.value = initialQuery;
 loadMoreButton.hidden = true;
@@ -106,13 +110,18 @@ function startSearch(query) {
   currentQuery = query;
   currentPage = 1;
   currentItems = [];
+  visibleCount = 0;
+  revealQueue = [];
+  stopReveal();
   loadMoreButton.hidden = true;
   results.innerHTML = "";
   searchPage(query, 1);
 }
 
 function fetchNextPage() {
-  searchPage(currentQuery, currentPage + 1);
+  visibleCount = Math.min(currentItems.length, visibleCount + DISPLAY_CHUNK);
+  renderResults(currentItems, currentQuery);
+  loadMoreButton.hidden = visibleCount >= currentItems.length;
 }
 
 async function searchPage(query, page) {
@@ -127,8 +136,10 @@ async function searchPage(query, page) {
 
     currentPage = page;
     currentItems = page === 1 ? items : mergeResults([...currentItems, ...items]);
+    visibleCount = Math.min(currentItems.length, DISPLAY_CHUNK);
     renderResults(currentItems, query);
-    loadMoreButton.hidden = items.length < PAGE_SIZE;
+    revealStreamingItems(currentItems.slice(visibleCount), query, requestId);
+    loadMoreButton.hidden = currentItems.length <= visibleCount;
   } catch (error) {
     if (requestId !== activeRequestId) return;
     setStatus(error.message || "Search failed.");
@@ -159,6 +170,7 @@ async function search(query, page) {
 async function searchMwmbl(query) {
   const url = new URL(MWMBL_ENDPOINT);
   url.searchParams.set("s", query);
+  url.searchParams.set("limit", String(FETCH_LIMIT));
 
   const response = await fetchWithTimeout(url.toString(), {
     headers: { accept: "application/json" },
@@ -189,6 +201,7 @@ async function searchSearxng(query, page) {
     url.searchParams.set("format", "json");
     url.searchParams.set("language", "en");
     url.searchParams.set("page", String(page));
+    url.searchParams.set("results", String(FETCH_LIMIT));
     return url.toString();
   });
 
@@ -284,13 +297,14 @@ async function fetchWithTimeout(url, options = {}, timeout = 7000) {
 
 function renderResults(items, query) {
   const cleanItems = items.filter((item) => item && item.url && item.title);
+  const showItems = cleanItems.slice(0, Math.max(visibleCount, DISPLAY_CHUNK));
 
-  if (!cleanItems.length) {
+  if (!showItems.length) {
     setStatus(`No results found for "${query}".`);
     return;
   }
 
-  results.innerHTML = cleanItems
+  results.innerHTML = showItems
     .map((item) => {
       const title = escapeHtml(item.title);
       const url = escapeHtml(item.url);
@@ -315,6 +329,9 @@ function resetResults() {
   currentQuery = "";
   currentPage = 1;
   currentItems = [];
+  visibleCount = 0;
+  revealQueue = [];
+  stopReveal();
   results.innerHTML = "";
   loadMoreButton.hidden = true;
 }
@@ -384,4 +401,39 @@ function fileToDataUrl(file) {
     reader.onerror = () => reject(reader.error || new Error("Failed to read image."));
     reader.readAsDataURL(file);
   });
+}
+
+function revealStreamingItems(items, query, requestId) {
+  revealQueue = [...items];
+  stopReveal();
+
+  if (!revealQueue.length || requestId !== activeRequestId) {
+    loadMoreButton.hidden = currentItems.length <= visibleCount;
+    return;
+  }
+
+  revealTimer = window.setInterval(() => {
+    if (requestId !== activeRequestId) {
+      stopReveal();
+      return;
+    }
+
+    const next = revealQueue.shift();
+    if (next) {
+      visibleCount = Math.min(currentItems.length, visibleCount + 1);
+      renderResults(currentItems, query);
+      loadMoreButton.hidden = visibleCount >= currentItems.length;
+    }
+
+    if (!revealQueue.length) {
+      stopReveal();
+    }
+  }, 90);
+}
+
+function stopReveal() {
+  if (revealTimer) {
+    window.clearInterval(revealTimer);
+    revealTimer = null;
+  }
 }
