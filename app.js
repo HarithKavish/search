@@ -131,15 +131,21 @@ async function searchPage(query, page) {
   loadMoreButton.disabled = true;
 
   try {
-    const items = await search(query, page);
-    if (requestId !== activeRequestId) return;
-
     currentPage = page;
-    currentItems = page === 1 ? items : mergeResults([...currentItems, ...items]);
-    visibleCount = Math.min(currentItems.length, DISPLAY_CHUNK);
-    renderResults(currentItems, query);
-    revealStreamingItems(currentItems.slice(visibleCount), query, requestId);
-    loadMoreButton.hidden = currentItems.length <= visibleCount;
+    currentItems = [];
+    visibleCount = 0;
+    stopReveal();
+    results.innerHTML = "";
+
+    const providerTasks = [
+      searchMwmbl(query).then((items) => enqueueResults(items, query, requestId)).catch(() => {}),
+      searchSearxng(query, page).then((items) => enqueueResults(items, query, requestId)).catch(() => {}),
+      page === 1 ? searchDuckDuckGo(query).then((items) => enqueueResults(items, query, requestId)).catch(() => {}) : Promise.resolve()
+    ];
+
+    await Promise.all(providerTasks);
+    if (requestId !== activeRequestId) return;
+    loadMoreButton.hidden = visibleCount >= currentItems.length;
   } catch (error) {
     if (requestId !== activeRequestId) return;
     setStatus(error.message || "Search failed.");
@@ -151,20 +157,6 @@ async function searchPage(query, page) {
       loadMoreButton.disabled = false;
     }
   }
-}
-
-async function search(query, page) {
-  const [mwmbl, searxng, duckduckgo] = await Promise.allSettled([
-    searchMwmbl(query),
-    searchSearxng(query, page),
-    page === 1 ? searchDuckDuckGo(query) : Promise.resolve([])
-  ]);
-
-  return mergeResults([
-    ...settledValue(mwmbl),
-    ...settledValue(searxng),
-    ...settledValue(duckduckgo)
-  ]);
 }
 
 async function searchMwmbl(query) {
@@ -297,7 +289,7 @@ async function fetchWithTimeout(url, options = {}, timeout = 7000) {
 
 function renderResults(items, query) {
   const cleanItems = items.filter((item) => item && item.url && item.title);
-  const showItems = cleanItems.slice(0, Math.max(visibleCount, DISPLAY_CHUNK));
+  const showItems = cleanItems.slice(0, visibleCount || DISPLAY_CHUNK);
 
   if (!showItems.length) {
     setStatus(`No results found for "${query}".`);
@@ -404,14 +396,18 @@ function fileToDataUrl(file) {
 }
 
 function revealStreamingItems(items, query, requestId) {
-  revealQueue = [...items];
+  revealQueue = items.slice(visibleCount);
   stopReveal();
 
   if (!revealQueue.length || requestId !== activeRequestId) {
+    visibleCount = Math.min(currentItems.length, DISPLAY_CHUNK);
     loadMoreButton.hidden = currentItems.length <= visibleCount;
+    renderResults(currentItems, query);
     return;
   }
 
+  visibleCount = Math.min(currentItems.length, 1);
+  renderResults(currentItems, query);
   revealTimer = window.setInterval(() => {
     if (requestId !== activeRequestId) {
       stopReveal();
@@ -429,6 +425,38 @@ function revealStreamingItems(items, query, requestId) {
       stopReveal();
     }
   }, 90);
+}
+
+function enqueueResults(items, query, requestId) {
+  if (requestId !== activeRequestId || !Array.isArray(items) || !items.length) return;
+
+  currentItems = mergeResults([...currentItems, ...items]);
+
+  if (!visibleCount) {
+    visibleCount = 1;
+    renderResults(currentItems, query);
+  }
+
+  const alreadyVisible = visibleCount;
+  revealQueue = currentItems.slice(alreadyVisible);
+  stopReveal();
+
+  revealTimer = window.setInterval(() => {
+    if (requestId !== activeRequestId) {
+      stopReveal();
+      return;
+    }
+
+    if (visibleCount >= currentItems.length || visibleCount >= DISPLAY_CHUNK) {
+      stopReveal();
+      loadMoreButton.hidden = visibleCount >= currentItems.length;
+      return;
+    }
+
+    visibleCount += 1;
+    renderResults(currentItems, query);
+    loadMoreButton.hidden = visibleCount >= currentItems.length;
+  }, 70);
 }
 
 function stopReveal() {
