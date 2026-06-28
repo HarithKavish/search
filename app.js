@@ -9,6 +9,12 @@ const backgroundButton = document.querySelector("#background-button");
 const backgroundFile = document.querySelector("#background-file");
 const historyPanel = document.querySelector("#history-panel");
 const historyToggle = document.querySelector("#history-toggle");
+const modeTabs = document.querySelectorAll(".mode-tab");
+const imageViewer = document.querySelector("#image-viewer");
+const imageViewerClose = document.querySelector("#image-viewer-close");
+const imageViewerImg = document.querySelector("#image-viewer-img");
+const imageViewerUrl = document.querySelector("#image-viewer-url");
+const imageViewerTitle = document.querySelector("#image-viewer-title");
 
 const MWMBL_ENDPOINT = "https://api.mwmbl.org/search";
 const DDG_ENDPOINT = "https://api.duckduckgo.com/";
@@ -33,8 +39,10 @@ const HISTORY_ENABLED_KEY = "search_history_enabled";
 const HISTORY_LIMIT = 7;
 const params = new URLSearchParams(window.location.search);
 const initialQuery = params.get("q") || "";
+const initialMode = params.get("type") === "images" ? "images" : "web";
 
 let currentQuery = initialQuery;
+let currentMode = initialMode;
 let currentPage = 1;
 let currentItems = [];
 let activeRequestId = 0;
@@ -49,6 +57,7 @@ loadMoreButton.hidden = true;
 settingsMenu.hidden = true;
 historyToggle.checked = historyEnabled;
 applySavedBackground();
+setMode(currentMode);
 
 settingsToggle.addEventListener("click", () => {
   const open = settingsMenu.hidden;
@@ -121,21 +130,32 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  const nextUrl = new URL(window.location.href);
-  nextUrl.searchParams.set("q", query);
-  window.history.pushState(null, "", nextUrl);
+  pushSearchUrl(query);
   saveSearch(query);
   historyPanel.hidden = true;
   startSearch(query);
 });
 
 loadMoreButton.addEventListener("click", () => {
-  if (!currentQuery) return;
+  if (!currentQuery || currentMode !== "web") return;
   fetchNextPage();
 });
 
+modeTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    const mode = tab.dataset.mode === "images" ? "images" : "web";
+    setMode(mode);
+
+    if (!currentQuery) return;
+    pushSearchUrl(currentQuery);
+    startSearch(currentQuery);
+  });
+});
+
 window.addEventListener("popstate", () => {
-  const query = new URLSearchParams(window.location.search).get("q") || "";
+  const nextParams = new URLSearchParams(window.location.search);
+  const query = nextParams.get("q") || "";
+  setMode(nextParams.get("type") === "images" ? "images" : "web");
   input.value = query;
 
   if (query) {
@@ -157,10 +177,16 @@ function startSearch(query) {
   revealTarget = 0;
   providersPending = 0;
   stopReveal();
+  closeImageViewer();
   loadMoreButton.hidden = true;
   loadMoreButton.disabled = true;
   results.innerHTML = "";
-  searchPage(query, 1);
+
+  if (currentMode === "images") {
+    searchImages(query);
+  } else {
+    searchPage(query, 1);
+  }
 }
 
 function fetchNextPage() {
@@ -205,6 +231,29 @@ async function searchPage(query, page) {
     if (requestId === activeRequestId) {
       button.disabled = false;
       updateLoadMore();
+    }
+  }
+}
+
+async function searchImages(query) {
+  const requestId = ++activeRequestId;
+  setStatus(`Searching images for "${query}"...`);
+  button.disabled = true;
+  loadMoreButton.hidden = true;
+  loadMoreButton.disabled = true;
+
+  try {
+    const items = await searchSearxngImages(query);
+    if (requestId !== activeRequestId) return;
+    currentItems = items;
+    renderImages(items, query);
+  } catch (error) {
+    if (requestId !== activeRequestId) return;
+    setStatus(error.message || "Image search failed.");
+    console.error(error);
+  } finally {
+    if (requestId === activeRequestId) {
+      button.disabled = false;
     }
   }
 }
@@ -277,6 +326,44 @@ async function searchSearxng(query, page) {
   }
 
   throw lastError || new Error("No SearXNG endpoint responded.");
+}
+
+async function searchSearxngImages(query) {
+  const urls = SEARXNG_ENDPOINTS.map((base) => {
+    const url = new URL("/search", base);
+    url.searchParams.set("q", query);
+    url.searchParams.set("format", "json");
+    url.searchParams.set("language", "en");
+    url.searchParams.set("categories", "images");
+    url.searchParams.set("results", String(FETCH_LIMIT));
+    return url.toString();
+  });
+
+  let lastError;
+
+  for (const url of urls) {
+    for (const proxied of CORS_PROXIES.map((proxy) => proxy(url))) {
+      try {
+        const response = await fetchWithTimeout(proxied, {
+          headers: { accept: "application/json" },
+          cache: "no-store"
+        });
+
+        if (!response.ok) {
+          throw new Error(`${response.status} from ${proxied}`);
+        }
+
+        const data = await response.json();
+        if (Array.isArray(data.results)) {
+          return mergeImageResults(data.results.map(normalizeImageResult));
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+
+  throw lastError || new Error("No image endpoint responded.");
 }
 
 async function searchDuckDuckGo(query) {
@@ -363,6 +450,32 @@ function renderResults(items, query) {
     .join("");
 }
 
+function renderImages(items, query) {
+  const cleanItems = items.filter((item) => item && item.src);
+
+  if (!cleanItems.length) {
+    setStatus(`No images found for "${query}".`);
+    return;
+  }
+
+  results.innerHTML = `
+    <div class="image-grid">
+      ${cleanItems.map(renderImageItem).join("")}
+    </div>
+  `;
+}
+
+function renderImageItem(item, index) {
+  const src = escapeHtml(item.thumb || item.src);
+  const alt = escapeHtml(item.title || "");
+
+  return `
+    <button type="button" class="image-result" data-index="${index}" aria-label="${alt || "Open image"}">
+      <img src="${src}" alt="${alt}" loading="lazy">
+    </button>
+  `;
+}
+
 function setStatus(message) {
   results.innerHTML = `<p class="status">${escapeHtml(message)}</p>`;
 }
@@ -375,11 +488,30 @@ function resetResults() {
   revealTarget = 0;
   providersPending = 0;
   stopReveal();
+  closeImageViewer();
   results.innerHTML = "";
   loadMoreButton.hidden = true;
   loadMoreButton.disabled = true;
   historyPanel.hidden = true;
 }
+
+results.addEventListener("click", (event) => {
+  const button = event.target.closest(".image-result");
+  if (!button) return;
+
+  const item = currentItems[Number(button.dataset.index)];
+  if (item) openImageViewer(item);
+});
+
+imageViewerClose.addEventListener("click", closeImageViewer);
+
+imageViewer.addEventListener("click", (event) => {
+  if (event.target === imageViewer) closeImageViewer();
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !imageViewer.hidden) closeImageViewer();
+});
 
 function applySavedBackground(overrideUrl) {
   const url = overrideUrl ?? window.localStorage.getItem(BG_KEY) ?? "";
@@ -407,6 +539,33 @@ function mergeResults(items) {
     const key = `${item.url}::${item.title}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    deduped.push(item);
+  }
+
+  return deduped;
+}
+
+function normalizeImageResult(item) {
+  const src = item?.img_src || item?.thumbnail_src || item?.thumbnail || item?.src || "";
+  const thumb = item?.thumbnail_src || item?.thumbnail || item?.img_src || item?.src || "";
+
+  return {
+    src,
+    thumb,
+    url: item?.url || item?.source || item?.img_src || "",
+    title: item?.title || item?.content || "",
+    content: item?.content || item?.title || item?.url || ""
+  };
+}
+
+function mergeImageResults(items) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const item of items) {
+    if (!item?.src) continue;
+    if (seen.has(item.src)) continue;
+    seen.add(item.src);
     deduped.push(item);
   }
 
@@ -495,9 +654,7 @@ historyPanel.addEventListener("click", (event) => {
 
   input.value = query;
   historyPanel.hidden = true;
-  const nextUrl = new URL(window.location.href);
-  nextUrl.searchParams.set("q", query);
-  window.history.pushState(null, "", nextUrl);
+  pushSearchUrl(query);
   startSearch(query);
 });
 
@@ -505,7 +662,39 @@ function resetToHome() {
   const homeUrl = `${window.location.origin}${window.location.pathname}`;
   window.history.pushState(null, "", homeUrl);
   input.value = "";
+  setMode("web");
   resetResults();
+}
+
+function setMode(mode) {
+  currentMode = mode === "images" ? "images" : "web";
+  modeTabs.forEach((tab) => {
+    const active = tab.dataset.mode === currentMode;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
+  });
+}
+
+function pushSearchUrl(query) {
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set("q", query);
+  if (currentMode === "images") nextUrl.searchParams.set("type", "images");
+  else nextUrl.searchParams.delete("type");
+  window.history.pushState(null, "", nextUrl);
+}
+
+function openImageViewer(item) {
+  imageViewerImg.src = item.src;
+  imageViewerImg.alt = item.title || "";
+  imageViewerUrl.href = item.url || item.src;
+  imageViewerUrl.textContent = item.url || item.src;
+  imageViewerTitle.textContent = item.content || item.title || "";
+  imageViewer.hidden = false;
+}
+
+function closeImageViewer() {
+  imageViewer.hidden = true;
+  imageViewerImg.removeAttribute("src");
 }
 
 function enqueueResults(items, query, requestId) {
@@ -554,6 +743,12 @@ function renderItem(item) {
 }
 
 function updateLoadMore() {
+  if (currentMode !== "web") {
+    loadMoreButton.hidden = true;
+    loadMoreButton.disabled = true;
+    return;
+  }
+
   const moreBuffered = currentItems.length > visibleCount;
   const waitingForCurrentChunk = Boolean(revealTimer) || visibleCount < revealTarget;
 

@@ -25,6 +25,10 @@
         <input id="q" name="q" type="search" autocomplete="off" spellcheck="false" autofocus placeholder="Search">
         <button type="submit">Search</button>
       </form>
+      <div class="mode-tabs" role="tablist" aria-label="Search type">
+        <button type="button" class="mode-tab is-active" data-mode="web" role="tab" aria-selected="true">Web</button>
+        <button type="button" class="mode-tab" data-mode="images" role="tab" aria-selected="false">Images</button>
+      </div>
       <div class="history-panel" id="history-panel" hidden></div>
 
       <section class="results" id="results" aria-live="polite"></section>
@@ -32,6 +36,16 @@
         <button type="button" id="load-more" class="more" hidden>Load more</button>
       </div>
     </main>
+    <div class="image-viewer" id="image-viewer" hidden>
+      <div class="image-viewer-panel" role="dialog" aria-modal="true" aria-label="Image preview">
+        <button type="button" class="image-viewer-close" id="image-viewer-close" aria-label="Close image preview">&times;</button>
+        <img id="image-viewer-img" alt="">
+        <div class="image-viewer-details">
+          <a id="image-viewer-url" href="#" rel="noopener noreferrer"></a>
+          <p id="image-viewer-title"></p>
+        </div>
+      </div>
+    </div>
     <script src="app.js"></script>
   </body>
 </html>
