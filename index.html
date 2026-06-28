@@ -8,6 +8,13 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <button type="button" class="settings-toggle" id="settings-toggle" aria-expanded="false" aria-controls="settings-menu" aria-label="Open settings">
+      <span aria-hidden="true">⚙</span>
+    </button>
+    <div class="settings-menu" id="settings-menu" hidden>
+      <button type="button" id="background-button">Background</button>
+      <input id="background-file" type="file" accept="image/*" hidden>
+    </div>
     <main class="shell">
       <form class="search" id="search-form" role="search">
         <label class="sr-only" for="q">Search the web</label>
@@ -16,8 +23,10 @@
       </form>
 
       <section class="results" id="results" aria-live="polite"></section>
+      <div class="more-row">
+        <button type="button" id="load-more" class="more" hidden>Load more</button>
+      </div>
     </main>
-
     <script src="app.js"></script>
   </body>
 </html>
