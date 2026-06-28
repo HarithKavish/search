@@ -35,7 +35,7 @@ let currentItems = [];
 let activeRequestId = 0;
 let visibleCount = 0;
 let revealTimer = null;
-let revealQueue = [];
+let revealTarget = 0;
 
 input.value = initialQuery;
 loadMoreButton.hidden = true;
@@ -111,7 +111,7 @@ function startSearch(query) {
   currentPage = 1;
   currentItems = [];
   visibleCount = 0;
-  revealQueue = [];
+  revealTarget = 0;
   stopReveal();
   loadMoreButton.hidden = true;
   results.innerHTML = "";
@@ -119,9 +119,8 @@ function startSearch(query) {
 }
 
 function fetchNextPage() {
-  visibleCount = Math.min(currentItems.length, visibleCount + DISPLAY_CHUNK);
-  renderResults(currentItems, currentQuery);
-  loadMoreButton.hidden = visibleCount >= currentItems.length;
+  revealTarget = Math.min(currentItems.length, revealTarget + DISPLAY_CHUNK);
+  startReveal(currentQuery, activeRequestId);
 }
 
 async function searchPage(query, page) {
@@ -134,18 +133,23 @@ async function searchPage(query, page) {
     currentPage = page;
     currentItems = [];
     visibleCount = 0;
+    revealTarget = DISPLAY_CHUNK;
     stopReveal();
     results.innerHTML = "";
+    let providerCount = 0;
 
     const providerTasks = [
-      searchMwmbl(query).then((items) => enqueueResults(items, query, requestId)).catch(() => {}),
-      searchSearxng(query, page).then((items) => enqueueResults(items, query, requestId)).catch(() => {}),
-      page === 1 ? searchDuckDuckGo(query).then((items) => enqueueResults(items, query, requestId)).catch(() => {}) : Promise.resolve()
+      searchMwmbl(query).then((items) => enqueueResults(items, query, requestId)).catch(() => {}).finally(() => providerCount += 1),
+      searchSearxng(query, page).then((items) => enqueueResults(items, query, requestId)).catch(() => {}).finally(() => providerCount += 1),
+      page === 1 ? searchDuckDuckGo(query).then((items) => enqueueResults(items, query, requestId)).catch(() => {}).finally(() => providerCount += 1) : Promise.resolve()
     ];
 
     await Promise.all(providerTasks);
     if (requestId !== activeRequestId) return;
-    loadMoreButton.hidden = visibleCount >= currentItems.length;
+    if (!currentItems.length && providerCount) {
+      setStatus(`No results found for "${query}".`);
+    }
+    updateLoadMore();
   } catch (error) {
     if (requestId !== activeRequestId) return;
     setStatus(error.message || "Search failed.");
@@ -322,7 +326,7 @@ function resetResults() {
   currentPage = 1;
   currentItems = [];
   visibleCount = 0;
-  revealQueue = [];
+  revealTarget = 0;
   stopReveal();
   results.innerHTML = "";
   loadMoreButton.hidden = true;
@@ -395,68 +399,56 @@ function fileToDataUrl(file) {
   });
 }
 
-function revealStreamingItems(items, query, requestId) {
-  revealQueue = items.slice(visibleCount);
-  stopReveal();
-
-  if (!revealQueue.length || requestId !== activeRequestId) {
-    visibleCount = Math.min(currentItems.length, DISPLAY_CHUNK);
-    loadMoreButton.hidden = currentItems.length <= visibleCount;
-    renderResults(currentItems, query);
-    return;
-  }
-
-  visibleCount = Math.min(currentItems.length, 1);
-  renderResults(currentItems, query);
-  revealTimer = window.setInterval(() => {
-    if (requestId !== activeRequestId) {
-      stopReveal();
-      return;
-    }
-
-    const next = revealQueue.shift();
-    if (next) {
-      visibleCount = Math.min(currentItems.length, visibleCount + 1);
-      renderResults(currentItems, query);
-      loadMoreButton.hidden = visibleCount >= currentItems.length;
-    }
-
-    if (!revealQueue.length) {
-      stopReveal();
-    }
-  }, 90);
-}
-
 function enqueueResults(items, query, requestId) {
   if (requestId !== activeRequestId || !Array.isArray(items) || !items.length) return;
 
   currentItems = mergeResults([...currentItems, ...items]);
+  if (results.querySelector(".status")) results.innerHTML = "";
+  startReveal(query, requestId);
+}
 
-  if (!visibleCount) {
-    visibleCount = 1;
-    renderResults(currentItems, query);
-  }
-
-  const alreadyVisible = visibleCount;
-  revealQueue = currentItems.slice(alreadyVisible);
-  stopReveal();
-
+function startReveal(query, requestId) {
+  if (revealTimer || requestId !== activeRequestId) return;
+  loadMoreButton.hidden = true;
   revealTimer = window.setInterval(() => {
     if (requestId !== activeRequestId) {
       stopReveal();
       return;
     }
 
-    if (visibleCount >= currentItems.length || visibleCount >= DISPLAY_CHUNK) {
+    if (visibleCount >= currentItems.length || visibleCount >= revealTarget) {
       stopReveal();
-      loadMoreButton.hidden = visibleCount >= currentItems.length;
+      updateLoadMore();
       return;
     }
 
-    visibleCount += 1;
-    renderResults(currentItems, query);
-    loadMoreButton.hidden = visibleCount >= currentItems.length;
+    const item = currentItems[visibleCount];
+    if (item) {
+      results.insertAdjacentHTML("beforeend", renderItem(item));
+      visibleCount += 1;
+    }
   }, 70);
+}
+
+function renderItem(item) {
+  const title = escapeHtml(item.title);
+  const url = escapeHtml(item.url);
+  const content = escapeHtml(item.content || item.snippet || "");
+
+  return `
+    <article class="result">
+      <a href="${url}" rel="noopener noreferrer">${title}</a>
+      <div class="url">${url}</div>
+      <p class="snippet">${content}</p>
+    </article>
+  `;
+}
+
+function updateLoadMore() {
+  loadMoreButton.hidden =
+    Boolean(revealTimer) ||
+    visibleCount >= currentItems.length ||
+    visibleCount < revealTarget;
 }
 
 function stopReveal() {
