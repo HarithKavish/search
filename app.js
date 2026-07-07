@@ -243,10 +243,19 @@ async function searchImages(query) {
   loadMoreButton.disabled = true;
 
   try {
-    const items = await searchSearxngImages(query);
+    // Prefer the local proxy which avoids CORS and provides a more reliable
+    // image source. If the proxy fails, fall back to SearxNG endpoints.
+    let items = [];
+    try {
+      items = await searchProxyImages(query);
+    } catch (proxyErr) {
+      console.warn("image proxy failed, falling back to SearxNG:", proxyErr);
+      items = await searchSearxngImages(query);
+    }
+
     if (requestId !== activeRequestId) return;
-    currentItems = items;
-    renderImages(items, query);
+    currentItems = items || [];
+    renderImages(currentItems, query);
   } catch (error) {
     if (requestId !== activeRequestId) return;
     setStatus(error.message || "Image search failed.");
@@ -256,6 +265,25 @@ async function searchImages(query) {
       button.disabled = false;
     }
   }
+}
+
+async function searchProxyImages(query) {
+  const url = `/api/images?q=${encodeURIComponent(query)}`;
+  const response = await fetchWithTimeout(url, { headers: { accept: "application/json" } }, 10000);
+  if (!response.ok) {
+    throw new Error(`${response.status} from image proxy`);
+  }
+
+  const data = await response.json();
+  if (Array.isArray(data.results)) {
+    return mergeImageResults(data.results.map(normalizeImageResult));
+  }
+
+  if (Array.isArray(data)) {
+    return mergeImageResults(data.map(normalizeImageResult));
+  }
+
+  throw new Error("No results from image proxy.");
 }
 
 async function searchMwmbl(query) {
