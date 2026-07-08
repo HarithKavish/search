@@ -508,17 +508,17 @@ function renderResults(items, query) {
 
       return `
         <article class="result">
-          <div class="result-source">
+          <div class="result-title-row">
             <span class="favicon" aria-hidden="true">
               <span class="favicon-fallback">${fallback}</span>
               ${faviconUrl ? `<img src="${faviconUrl}" alt="" loading="lazy" onerror="this.remove()">` : ""}
             </span>
-            <div>
-              <div class="source-host">${hostLabel}</div>
-              <div class="url">${url}</div>
-            </div>
+            <a class="result-title" href="${url}" rel="noopener noreferrer">${title}</a>
           </div>
-          <a class="result-title" href="${url}" rel="noopener noreferrer">${title}</a>
+          <div class="result-source">
+            <span class="source-host">${hostLabel}</span>
+            <span class="url">${url}</span>
+          </div>
           <p class="snippet">${content}</p>
         </article>
       `;
@@ -828,17 +828,17 @@ function renderItem(item) {
 
   return `
     <article class="result">
-      <div class="result-source">
+      <div class="result-title-row">
         <span class="favicon" aria-hidden="true">
           <span class="favicon-fallback">${fallback}</span>
           ${faviconUrl ? `<img src="${faviconUrl}" alt="" loading="lazy" onerror="this.remove()">` : ""}
         </span>
-        <div>
-          <div class="source-host">${hostLabel}</div>
-          <div class="url">${url}</div>
-        </div>
+        <a class="result-title" href="${url}" rel="noopener noreferrer">${title}</a>
       </div>
-      <a class="result-title" href="${url}" rel="noopener noreferrer">${title}</a>
+      <div class="result-source">
+        <span class="source-host">${hostLabel}</span>
+        <span class="url">${url}</span>
+      </div>
       <p class="snippet">${content}</p>
     </article>
   `;
@@ -855,7 +855,7 @@ function getResultHost(value) {
 function getFaviconUrl(value) {
   const host = getResultHost(value);
   if (!host) return "";
-  return `https://icons.duckduckgo.com/ip3/${host}.ico`;
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`;
 }
 
 function getFaviconFallback(value) {
