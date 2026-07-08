@@ -243,11 +243,14 @@ async function searchImages(query) {
   loadMoreButton.disabled = true;
 
   try {
-    // Prefer the local proxy which avoids CORS and provides a more reliable
-    // image source. If the proxy fails, fall back to SearxNG endpoints.
+    // Prefer Wikimedia Commons first because it works on static hosting.
+    // If that returns nothing, fall back to the local proxy and then SearxNG.
     let items = [];
     try {
-      items = await searchProxyImages(query);
+      items = await searchWikimediaImages(query);
+      if (!items.length) {
+        items = await searchProxyImages(query);
+      }
     } catch (proxyErr) {
       console.warn("image proxy failed, falling back to SearxNG:", proxyErr);
       items = await searchSearxngImages(query);
@@ -269,7 +272,7 @@ async function searchImages(query) {
 
 async function searchProxyImages(query) {
   const url = `/api/images?q=${encodeURIComponent(query)}`;
-  const response = await fetchWithTimeout(url, { headers: { accept: "application/json" } }, 10000);
+  const response = await fetchWithTimeout(url, { headers: { accept: "application/json" } }, 15000);
   if (!response.ok) {
     throw new Error(`${response.status} from image proxy`);
   }
@@ -284,6 +287,33 @@ async function searchProxyImages(query) {
   }
 
   throw new Error("No results from image proxy.");
+}
+
+async function searchWikimediaImages(query) {
+  const url = new URL("https://commons.wikimedia.org/w/api.php");
+  url.searchParams.set("action", "query");
+  url.searchParams.set("generator", "search");
+  url.searchParams.set("gsrsearch", query);
+  url.searchParams.set("gsrlimit", String(FETCH_LIMIT));
+  url.searchParams.set("gsrnamespace", "6");
+  url.searchParams.set("prop", "imageinfo");
+  url.searchParams.set("iiprop", "url|extmetadata");
+  url.searchParams.set("iiurlwidth", "600");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("origin", "*");
+
+  const response = await fetchWithTimeout(url.toString(), {
+    headers: { accept: "application/json" },
+    cache: "no-store"
+  }, 12000);
+
+  if (!response.ok) {
+    throw new Error(`${response.status} from Wikimedia Commons`);
+  }
+
+  const data = await response.json();
+  const pages = Object.values(data?.query?.pages || {});
+  return mergeImageResults(pages.map(normalizeCommonsImageResult));
 }
 
 async function searchMwmbl(query) {
@@ -440,13 +470,18 @@ async function searchDuckDuckGo(query) {
 
 async function fetchWithTimeout(url, options = {}, timeout = 7000) {
   const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeout);
+  const timer = window.setTimeout(() => controller.abort(new DOMException(`Request timed out after ${timeout}ms`, "TimeoutError")), timeout);
 
   try {
     return await fetch(url, {
       ...options,
       signal: controller.signal
     });
+  } catch (error) {
+    if (error?.name === "AbortError" || error?.name === "TimeoutError") {
+      throw new Error(`Request timed out after ${timeout}ms while fetching ${url}`);
+    }
+    throw error;
   } finally {
     window.clearTimeout(timer);
   }
@@ -583,6 +618,19 @@ function normalizeImageResult(item) {
     url: item?.url || item?.source || item?.img_src || "",
     title: item?.title || item?.content || "",
     content: item?.content || item?.title || item?.url || ""
+  };
+}
+
+function normalizeCommonsImageResult(page) {
+  const imageInfo = Array.isArray(page?.imageinfo) ? page.imageinfo[0] : null;
+  const src = imageInfo?.thumburl || imageInfo?.url || "";
+
+  return {
+    src,
+    thumb: imageInfo?.thumburl || imageInfo?.url || "",
+    url: imageInfo?.descriptionurl || imageInfo?.url || "",
+    title: page?.title || "",
+    content: page?.title || imageInfo?.descriptionurl || ""
   };
 }
 
