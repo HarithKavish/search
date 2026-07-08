@@ -33,6 +33,40 @@ const CORS_PROXIES = [
 
 const FETCH_LIMIT = 100;
 const DISPLAY_CHUNK = 25;
+const SEARCH_ENGINE_HOSTS = new Set([
+  "ask.com",
+  "baidu.com",
+  "baresearch.org",
+  "bing.com",
+  "dogpile.com",
+  "duckduckgo.com",
+  "ecosia.org",
+  "google.com",
+  "kagi.com",
+  "lycos.com",
+  "metager.org",
+  "mojeek.com",
+  "opnxng.com",
+  "priv.au",
+  "qwant.com",
+  "search.brave.com",
+  "search.com",
+  "search.hbubli.cc",
+  "search.yahoo.com",
+  "startpage.com",
+  "swisscows.com",
+  "webcrawler.com",
+  "yandex.com",
+  "yandex.ru",
+  "you.com"
+]);
+const SEARCH_ENGINE_PATH_PREFIXES = [
+  "/search",
+  "/url",
+  "/imgres",
+  "/images/search",
+  "/webhp"
+];
 const BG_KEY = "search_background_url";
 const HISTORY_KEY = "search_history_items";
 const HISTORY_ENABLED_KEY = "search_history_enabled";
@@ -488,7 +522,7 @@ async function fetchWithTimeout(url, options = {}, timeout = 7000) {
 }
 
 function renderResults(items, query) {
-  const cleanItems = items.filter((item) => item && item.url && item.title);
+  const cleanItems = items.filter((item) => item && item.url && item.title && !isSearchEngineUrl(item.url));
   const showItems = cleanItems.slice(0, visibleCount || DISPLAY_CHUNK);
 
   if (!showItems.length) {
@@ -612,6 +646,7 @@ function mergeResults(items) {
 
   for (const item of items) {
     if (!item?.url || !item?.title) continue;
+    if (isSearchEngineUrl(item.url)) continue;
     const key = `${item.url}::${item.title}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -669,6 +704,24 @@ function joinMwmblParts(parts) {
   if (typeof parts === "string") return parts;
   if (!Array.isArray(parts)) return "";
   return parts.map((part) => part.value || "").join("");
+}
+
+function isSearchEngineUrl(value) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = url.pathname.toLowerCase();
+
+    if (SEARCH_ENGINE_HOSTS.has(host)) return true;
+
+    if (host === "yahoo.com" && path.startsWith("/search")) return true;
+    if (host === "brave.com" && path.startsWith("/search")) return true;
+
+    return (host === "google.com" || host === "bing.com") &&
+      SEARCH_ENGINE_PATH_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+  } catch {
+    return false;
+  }
 }
 
 function escapeHtml(value) {
