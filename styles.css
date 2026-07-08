@@ -361,20 +361,67 @@ button:disabled {
   border-top: 0;
 }
 
-.result a {
+.result-source {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.favicon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.favicon img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--bg);
+}
+
+.favicon-fallback {
+  opacity: 0.78;
+}
+
+.source-host {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.result a,
+.result-title {
   color: var(--link);
   font-size: 18px;
   text-decoration: none;
 }
 
-.result a:hover {
+.result a:hover,
+.result-title:hover {
   text-decoration: underline;
 }
 
 .url {
-  margin: 6px 0;
+  margin-top: 2px;
   color: #167b46;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 

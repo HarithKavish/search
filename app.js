@@ -501,11 +501,24 @@ function renderResults(items, query) {
       const title = escapeHtml(item.title);
       const url = escapeHtml(item.url);
       const content = escapeHtml(item.content || item.snippet || "");
+      const host = getResultHost(item.url);
+      const hostLabel = escapeHtml(host || item.url);
+      const faviconUrl = escapeHtml(getFaviconUrl(item.url));
+      const fallback = escapeHtml(getFaviconFallback(host || item.title));
 
       return `
         <article class="result">
-          <a href="${url}" rel="noopener noreferrer">${title}</a>
-          <div class="url">${url}</div>
+          <div class="result-source">
+            <span class="favicon" aria-hidden="true">
+              <span class="favicon-fallback">${fallback}</span>
+              ${faviconUrl ? `<img src="${faviconUrl}" alt="" loading="lazy" onerror="this.remove()">` : ""}
+            </span>
+            <div>
+              <div class="source-host">${hostLabel}</div>
+              <div class="url">${url}</div>
+            </div>
+          </div>
+          <a class="result-title" href="${url}" rel="noopener noreferrer">${title}</a>
           <p class="snippet">${content}</p>
         </article>
       `;
@@ -808,14 +821,46 @@ function renderItem(item) {
   const title = escapeHtml(item.title);
   const url = escapeHtml(item.url);
   const content = escapeHtml(item.content || item.snippet || "");
+  const host = getResultHost(item.url);
+  const hostLabel = escapeHtml(host || item.url);
+  const faviconUrl = escapeHtml(getFaviconUrl(item.url));
+  const fallback = escapeHtml(getFaviconFallback(host || item.title));
 
   return `
     <article class="result">
-      <a href="${url}" rel="noopener noreferrer">${title}</a>
-      <div class="url">${url}</div>
+      <div class="result-source">
+        <span class="favicon" aria-hidden="true">
+          <span class="favicon-fallback">${fallback}</span>
+          ${faviconUrl ? `<img src="${faviconUrl}" alt="" loading="lazy" onerror="this.remove()">` : ""}
+        </span>
+        <div>
+          <div class="source-host">${hostLabel}</div>
+          <div class="url">${url}</div>
+        </div>
+      </div>
+      <a class="result-title" href="${url}" rel="noopener noreferrer">${title}</a>
       <p class="snippet">${content}</p>
     </article>
   `;
+}
+
+function getResultHost(value) {
+  try {
+    return new URL(value).hostname.replace(/^www\./i, "");
+  } catch {
+    return "";
+  }
+}
+
+function getFaviconUrl(value) {
+  const host = getResultHost(value);
+  if (!host) return "";
+  return `https://icons.duckduckgo.com/ip3/${host}.ico`;
+}
+
+function getFaviconFallback(value) {
+  const match = String(value || "").match(/[a-z0-9]/i);
+  return match ? match[0].toUpperCase() : "?";
 }
 
 function updateLoadMore() {
