@@ -627,10 +627,12 @@ function applySavedBackground(overrideUrl) {
   const url = overrideUrl ?? window.localStorage.getItem(BG_KEY) ?? "";
   if (!url) {
     document.documentElement.style.setProperty("--bg-image", "none");
+    document.body.removeAttribute("data-bg");
     return;
   }
 
   document.documentElement.style.setProperty("--bg-image", `url("${escapeCssUrl(url)}")`);
+  document.body.setAttribute("data-bg", "on");
 }
 
 function flattenTopics(topics) {
@@ -943,3 +945,61 @@ function completeProvider(requestId, callback) {
   callback();
   updateLoadMore();
 }
+
+
+/* Shared site chrome ---------------------------------------------------- */
+/* Mirrors harithkavish.com/site.js so the header behaves the same here.
+   The theme key matches the main site's, though localStorage is per-origin
+   so a choice made there does not carry across to this subdomain. */
+
+const THEME_KEY = "harithkavish-theme";
+const themeToggle = document.querySelector("[data-theme-toggle]");
+const navToggle = document.querySelector("[data-nav-toggle]");
+const primaryNav = document.querySelector("#primary-nav");
+const footerYear = document.querySelector("#footer-year");
+
+let currentTheme = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+let mobileNavOpen = false;
+
+function applyTheme(nextTheme) {
+  currentTheme = nextTheme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = currentTheme;
+  window.localStorage.setItem(THEME_KEY, currentTheme);
+
+  if (!themeToggle) return;
+  themeToggle.textContent = currentTheme === "dark" ? "Light mode" : "Dark mode";
+  themeToggle.setAttribute("aria-label", currentTheme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+}
+
+function setMobileNavOpen(nextOpen) {
+  mobileNavOpen = nextOpen;
+  if (primaryNav) primaryNav.classList.toggle("is-open", mobileNavOpen);
+  if (!navToggle) return;
+  navToggle.classList.toggle("is-open", mobileNavOpen);
+  navToggle.setAttribute("aria-expanded", String(mobileNavOpen));
+  navToggle.setAttribute("aria-label", mobileNavOpen ? "Close menu" : "Open menu");
+}
+
+applyTheme(currentTheme);
+if (footerYear) footerYear.textContent = String(new Date().getFullYear());
+
+if (themeToggle) {
+  themeToggle.addEventListener("click", () => {
+    applyTheme(currentTheme === "dark" ? "light" : "dark");
+  });
+}
+
+if (navToggle) {
+  navToggle.addEventListener("click", () => setMobileNavOpen(!mobileNavOpen));
+}
+
+window.addEventListener("click", (event) => {
+  if (!mobileNavOpen) return;
+  if (primaryNav && primaryNav.contains(event.target)) return;
+  if (navToggle && navToggle.contains(event.target)) return;
+  setMobileNavOpen(false);
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setMobileNavOpen(false);
+});
