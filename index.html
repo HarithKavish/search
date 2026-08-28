@@ -10,57 +10,39 @@
     <meta name="theme-color" content="#0b1014" media="(prefers-color-scheme: dark)">
     <link rel="canonical" href="https://search.harithkavish.com/">
     <link rel="icon" href="https://harithkavish.com/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="https://harithkavish.com/style.css">
+    <!-- The shared design system, then only what search adds on top. -->
+    <link rel="stylesheet" href="https://harithkavish.com/design-system/v1.0.0/tokens.css">
+    <link rel="stylesheet" href="https://harithkavish.com/design-system/v1.0.0/base.css">
+    <link rel="stylesheet" href="https://harithkavish.com/design-system/v1.0.0/components.css">
+    <link rel="stylesheet" href="https://harithkavish.com/design-system/v1.0.0/utils.css">
     <link rel="stylesheet" href="styles.css">
-    <script>
-        document.documentElement.dataset.theme = localStorage.getItem('harithkavish-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    </script>
+    <script src="https://harithkavish.com/design-system/v1.0.0/theme-toggle.js"></script>
+    <script src="https://harithkavish.com/design-system/v1.0.0/harith-shell.js"></script>
     <title>Search</title>
 </head>
 <body data-page="search">
     <div class="site-shell">
-        <header class="site-header">
-            <div class="site-header__inner">
-                <a class="brand" href="https://harithkavish.com/index.html">
-                    <img class="brand__mark" src="https://harithkavish.com/logo.png" alt="" aria-hidden="true">
-                    <span class="brand__text">
-                        <span class="brand__name">Harith Kavish</span>
-                        <span class="brand__descriptor">Independent software business</span>
-                    </span>
-                </a>
-                <div class="site-header__actions">
-                    <nav class="site-nav" id="primary-nav" aria-label="Primary">
-                        <a class="site-nav__link" href="https://harithkavish.com/products.html">Products</a>
-                        <a class="site-nav__link" href="https://harithkavish.com/updates.html">Updates</a>
-                        <a class="site-nav__link" href="https://harithkavish.com/about-us.html">About Us</a>
-                        <a class="site-nav__link" href="https://harithkavish.com/about-me.html">About Me</a>
-                        <a class="site-nav__link" href="https://harithkavish.com/contact.html">Contact</a>
-                        <a class="site-nav__link" href="https://harithkavish.com/sign-in.html">Sign In</a>
-                    </nav>
-                    <button type="button" class="theme-toggle" data-theme-toggle="true" aria-label="Switch to dark mode">Dark mode</button>
-                    <div class="settings">
-                        <button type="button" class="settings-toggle button" id="settings-toggle" aria-expanded="false" aria-controls="settings-menu" aria-label="Open settings">
-                            <span aria-hidden="true">&#9881;</span>
-                        </button>
-                        <div class="settings-menu" id="settings-menu" hidden>
-                            <button type="button" class="settings-item" id="background-button">Background</button>
-                            <label class="settings-row" for="history-toggle">
-                                <span>History</span>
-                                <input id="history-toggle" type="checkbox" role="switch">
-                            </label>
-                            <input id="background-file" type="file" accept="image/*" hidden>
-                        </div>
-                    </div>
-                    <button type="button" class="nav-toggle" data-nav-toggle="true" aria-controls="primary-nav" aria-expanded="false" aria-label="Open menu">
-                        <span class="nav-toggle__bars" aria-hidden="true">
-                            <span class="nav-toggle__bar"></span>
-                            <span class="nav-toggle__bar"></span>
-                            <span class="nav-toggle__bar"></span>
-                        </span>
-                    </button>
+        <harith-header
+            site-title="Harith Kavish"
+            site-tagline="Independent software business"
+            brand-href="https://harithkavish.com/index.html"
+            brand-mark="https://harithkavish.com/logo.png"
+            nav-links='[{"label":"Products","href":"https://harithkavish.com/products.html"},{"label":"Updates","href":"https://harithkavish.com/updates.html"},{"label":"About Us","href":"https://harithkavish.com/about-us.html"},{"label":"About Me","href":"https://harithkavish.com/about-me.html"},{"label":"Contact","href":"https://harithkavish.com/contact.html"},{"label":"Sign In","href":"https://harithkavish.com/sign-in.html"}]'>
+            <!-- Contributed into the shared header's actions. -->
+            <div class="settings">
+                <button type="button" class="settings-toggle button" id="settings-toggle" aria-expanded="false" aria-controls="settings-menu" aria-label="Open settings">
+                    <span aria-hidden="true">&#9881;</span>
+                </button>
+                <div class="settings-menu" id="settings-menu" hidden>
+                    <button type="button" class="settings-item" id="background-button">Background</button>
+                    <label class="settings-row" for="history-toggle">
+                        <span>History</span>
+                        <input id="history-toggle" type="checkbox" role="switch">
+                    </label>
+                    <input id="background-file" type="file" accept="image/*" hidden>
                 </div>
             </div>
-        </header>
+        </harith-header>
         <main class="site-main">
             <form class="search" id="search-form" role="search">
                 <label class="sr-only" for="q">Search the web</label>
@@ -78,21 +60,9 @@
                 <button type="button" id="load-more" class="more button" hidden>Load more</button>
             </div>
         </main>
-        <footer class="site-footer">
-            <div class="site-footer__inner">
-                <p class="site-footer__copy">&copy; <span id="footer-year">2026</span> Harith Kavish</p>
-                <nav class="site-footer__nav" aria-label="Footer">
-                    <a class="site-nav__link" href="https://harithkavish.com/products.html">Products</a>
-                    <a class="site-nav__link" href="https://harithkavish.com/updates.html">Updates</a>
-                    <a class="site-nav__link" href="https://harithkavish.com/about-us.html">About Us</a>
-                    <a class="site-nav__link" href="https://harithkavish.com/about-me.html">About Me</a>
-                    <a class="site-nav__link" href="https://harithkavish.com/contact.html">Contact</a>
-                    <a class="site-nav__link" href="https://harithkavish.com/legal.html">Legal</a>
-                    <a class="site-nav__link" href="https://harithkavish.com/status.html">Status</a>
-                    <a class="site-nav__link" href="https://harithkavish.com/sign-in.html">Sign In</a>
-                </nav>
-            </div>
-        </footer>
+        <harith-footer
+            copyright-text="Harith Kavish"
+            links='[{"label":"Products","href":"https://harithkavish.com/products.html"},{"label":"Updates","href":"https://harithkavish.com/updates.html"},{"label":"About Us","href":"https://harithkavish.com/about-us.html"},{"label":"About Me","href":"https://harithkavish.com/about-me.html"},{"label":"Contact","href":"https://harithkavish.com/contact.html"},{"label":"Legal","href":"https://harithkavish.com/legal.html"},{"label":"Status","href":"https://harithkavish.com/status.html"},{"label":"Sign In","href":"https://harithkavish.com/sign-in.html"}]'></harith-footer>
     </div>
     <div class="image-viewer" id="image-viewer" hidden>
         <div class="image-viewer-panel" role="dialog" aria-modal="true" aria-label="Image preview">

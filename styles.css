@@ -1,19 +1,7 @@
-/* Search-only components. Everything here is built from the shared theme's
-   tokens (harithkavish.com/style.css), which must be linked first. Only the
-   two tokens below are search-specific; every other colour comes from the
-   shared palette so this page tracks the ecosystem in both themes. */
-
-:root {
-    /* Scrim laid over a user-supplied background so cards stay readable. */
-    --scrim: rgba(244, 249, 251, 0.62);
-    /* Result URLs reuse the shared "live" green from the pill palette. */
-    --result-url: #267f57;
-}
-
-:root[data-theme='dark'] {
-    --scrim: rgba(11, 16, 20, 0.62);
-    --result-url: #92d3b0;
-}
+/* Search-only components. Every colour comes from the shared design system, so
+   this page tracks the ecosystem in both themes and defines no palette of its
+   own. --scrim now ships with the system; result URLs use the shared live
+   green directly rather than restating its hex. */
 
 /* The shared grid overlay sits in ::before; the custom background replaces it
    only while one is set, so the default page keeps the ecosystem texture. */
@@ -347,7 +335,7 @@ body[data-bg='on']::after {
 }
 
 .url {
-    color: var(--result-url);
+    color: var(--status-live-fg);
     font-size: 0.78rem;
     line-height: 1.3;
     overflow-wrap: anywhere;
