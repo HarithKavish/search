@@ -1,0 +1,98 @@
+name: Claude Issue Implementation
+
+# Two trigger paths into the same job:
+#
+#   1. issues: opened/labeled — starts a run when the "claude" label is on
+#      the issue. Only Claude posts a plan here; no code, no branch, no PR.
+#   2. issue_comment: created — continues the thread. The action itself only
+#      invokes Claude when the comment contains the trigger phrase (@claude),
+#      so every follow-up reply must include it: "@claude yes", "@claude no",
+#      or "@claude <feedback>".
+#
+# By default claude-code-action requires the triggering user (issue author or
+# commenter) to have write access to the repo — on this public repo that
+# means only HarithKavish can start or steer a run. See docs/security.md in
+# anthropics/claude-code-action.
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  work-issue:
+    runs-on: ubuntu-latest
+    # issue_comment fires for PR comments too; claude-review.yml already
+    # owns PR review, so skip anything that isn't a plain issue.
+    if: github.event.issue.pull_request == null
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: development
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          track_progress: true
+          label_trigger: "claude"
+          claude_args: >-
+            --allowedTools "Bash(git:*),Bash(gh issue comment:*),Bash(gh pr create:*),Bash(gh pr list:*),Bash(gh pr view:*)"
+          prompt: |
+            You are working GitHub issue #${{ github.event.issue.number }} —
+            "${{ github.event.issue.title }}" — in this repository. The
+            branching standard here: implementation work happens on a
+            feature/claude/issue-<N>-<slug> branch and reaches `development`
+            only through a pull request. Never commit directly to
+            development, runway, or main, and never merge or close anything
+            yourself.
+
+            Read the issue body and every comment on the thread so far, then
+            work out which state applies:
+
+            STATE A — no comment from you exists on this issue yet:
+            Investigate the codebase enough to propose a concrete, scoped
+            approach. Post one comment with:
+              gh issue comment ${{ github.event.issue.number }} --body "..."
+            containing a short plan (what you'll change, why, rough size/
+            risk), ending with exactly:
+              "Reply here with '@claude yes' to proceed, '@claude no' to
+              drop this, or '@claude' plus your feedback and I'll revise the
+              plan."
+            Do not create a branch, write code, or open a PR in this state.
+
+            STATE B — a plan was already posted and this run was triggered
+            by a new reply to it:
+              - Clear approval ("yes", "approve", "go ahead", "lgtm"):
+                implement the plan now.
+                  1. git fetch origin
+                  2. git checkout -B feature/claude/issue-${{ github.event.issue.number }}-<short-kebab-slug> origin/development
+                  3. Make the change; run any checks/tests the repo already
+                     has for the area you touched.
+                  4. git add -A && git commit -m "<concise message>"
+                  5. git push -u origin feature/claude/issue-${{ github.event.issue.number }}-<short-kebab-slug>
+                  6. gh pr create --base development --head feature/claude/issue-${{ github.event.issue.number }}-<short-kebab-slug> --title "<title>" --body "Closes #${{ github.event.issue.number }}\n\n<summary>"
+                  7. gh issue comment ${{ github.event.issue.number }} --body "Opened <PR URL> against development."
+              - Clear rejection ("no", "drop it", "not needed"): post a
+                brief acknowledgment comment and stop. Touch no branch, open
+                no PR.
+              - Neither (a question, a requested change, new information):
+                revise the plan and post an updated comment ending with the
+                same yes/no/feedback prompt from STATE A. Still write no
+                code.
+
+            STATE C — a PR already exists for this issue (check with
+            `gh pr list --head feature/claude/issue-${{ github.event.issue.number }}-<slug> --state all`,
+            trying the slug used in the plan) and the triggering comment
+            asks for a change: check out that same branch, push additional
+            commits to it, and comment with a short note of what changed.
+            Do not open a second PR for the same issue.
+
+            Never merge, close, or push directly to development, runway, or
+            main.
