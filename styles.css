@@ -19,8 +19,8 @@ body[data-bg='on']::after {
     position: fixed;
     inset: 0;
     background: var(--scrim);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
     pointer-events: none;
     z-index: 0;
 }
