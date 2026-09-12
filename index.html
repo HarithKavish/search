@@ -29,21 +29,17 @@
             site-tagline="Independent software business"
             brand-href="https://harithkavish.com/index.html"
             brand-mark="https://harithkavish.com/logo.png"
-            nav-links='[{"label":"Products","href":"https://harithkavish.com/products.html"},{"label":"Updates","href":"https://harithkavish.com/updates.html"},{"label":"About Us","href":"https://harithkavish.com/about-us.html"},{"label":"About Me","href":"https://harithkavish.com/about-me.html"},{"label":"Contact","href":"https://harithkavish.com/contact.html"},{"label":"Sign In","href":"https://harithkavish.com/sign-in.html"}]'>
-            <!-- Contributed into the shared header's actions. -->
-            <div class="settings">
-                <button type="button" class="settings-toggle button" id="settings-toggle" aria-expanded="false" aria-controls="settings-menu" aria-label="Open settings">
-                    <span aria-hidden="true">&#9881;</span>
-                </button>
-                <div class="settings-menu" id="settings-menu" hidden>
-                    <button type="button" class="settings-item" id="background-button">Background</button>
-                    <label class="settings-row" for="history-toggle">
-                        <span>History</span>
-                        <input id="history-toggle" type="checkbox" role="switch">
-                    </label>
-                    <input id="background-file" type="file" accept="image/*" hidden>
-                </div>
-            </div>
+            site-settings-label="Search">
+            <!-- Rendered into the shared profile dropdown, signed in or not
+                 -- see design-system's docs/shell-contract.md. -->
+            <template class="site-settings-items">
+                <button type="button" class="user-dropdown-action" id="background-button">Background</button>
+                <label class="user-dropdown-row" for="history-toggle">
+                    <span>History</span>
+                    <input id="history-toggle" type="checkbox" role="switch">
+                </label>
+                <input id="background-file" type="file" accept="image/*" hidden>
+            </template>
         </harith-header>
         <main class="site-main">
             <form class="search" id="search-form" role="search">
@@ -64,7 +60,7 @@
         </main>
         <harith-footer
             copyright-text="Harith Kavish"
-            links='[{"label":"Products","href":"https://harithkavish.com/products.html"},{"label":"Updates","href":"https://harithkavish.com/updates.html"},{"label":"About Us","href":"https://harithkavish.com/about-us.html"},{"label":"About Me","href":"https://harithkavish.com/about-me.html"},{"label":"Contact","href":"https://harithkavish.com/contact.html"},{"label":"Legal","href":"https://harithkavish.com/legal.html"},{"label":"Status","href":"https://harithkavish.com/status.html"},{"label":"Sign In","href":"https://harithkavish.com/sign-in.html"}]'></harith-footer>
+            links='[{"label":"Home","href":"https://harithkavish.com/"},{"label":"Status","href":"https://harithkavish.com/status.html"},{"label":"Legal","href":"https://harithkavish.com/legal.html"}]'></harith-footer>
     </div>
     <div class="image-viewer" id="image-viewer" hidden>
         <div class="image-viewer-panel" role="dialog" aria-modal="true" aria-label="Image preview">
