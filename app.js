@@ -3,12 +3,7 @@ const input = document.querySelector("#q");
 const button = form.querySelector("button");
 const results = document.querySelector("#results");
 const loadMoreButton = document.querySelector("#load-more");
-const settingsToggle = document.querySelector("#settings-toggle");
-const settingsMenu = document.querySelector("#settings-menu");
-const backgroundButton = document.querySelector("#background-button");
-const backgroundFile = document.querySelector("#background-file");
 const historyPanel = document.querySelector("#history-panel");
-const historyToggle = document.querySelector("#history-toggle");
 const modeTabs = document.querySelectorAll(".mode-tab");
 const imageViewer = document.querySelector("#image-viewer");
 const imageViewerClose = document.querySelector("#image-viewer-close");
@@ -88,50 +83,51 @@ let historyEnabled = window.localStorage.getItem(HISTORY_ENABLED_KEY) === "true"
 
 input.value = initialQuery;
 loadMoreButton.hidden = true;
-settingsMenu.hidden = true;
-historyToggle.checked = historyEnabled;
 applySavedBackground();
 setMode(currentMode);
 
-settingsToggle.addEventListener("click", () => {
-  const open = settingsMenu.hidden;
-  settingsMenu.hidden = !open;
-  settingsToggle.setAttribute("aria-expanded", String(open));
+/* #background-button, #background-file and #history-toggle live inside
+   <template class="site-settings-items"> in index.html -- inert markup
+   the design system's shared profile dropdown clones into the DOM only
+   once it renders (async, and again on every auth change), not present
+   at all when this script's top level runs. harith-shell.js fires
+   "harith-site-settings-ready" (bubbled to document) each time it does
+   that, so wiring happens here instead of at load, and re-queries
+   rather than caching elements a prior render already discarded. */
+document.addEventListener("harith-site-settings-ready", () => {
+  const backgroundButton = document.querySelector("#background-button");
+  const backgroundFile = document.querySelector("#background-file");
+  const historyToggle = document.querySelector("#history-toggle");
+  if (!backgroundButton || !backgroundFile || !historyToggle) return;
+
+  historyToggle.checked = historyEnabled;
+
+  backgroundButton.addEventListener("click", () => {
+    backgroundFile.value = "";
+    backgroundFile.click();
+  });
+
+  backgroundFile.addEventListener("change", async () => {
+    const file = backgroundFile.files && backgroundFile.files[0];
+    if (!file) return;
+
+    const dataUrl = await fileToDataUrl(file);
+    window.localStorage.setItem(BG_KEY, dataUrl);
+    applySavedBackground(dataUrl);
+  });
+
+  historyToggle.addEventListener("change", () => {
+    historyEnabled = historyToggle.checked;
+    window.localStorage.setItem(HISTORY_ENABLED_KEY, String(historyEnabled));
+
+    if (!historyEnabled) {
+      historyPanel.hidden = true;
+    } else if (document.activeElement === input) {
+      renderHistoryPanel();
+    }
+  });
 });
 
-backgroundButton.addEventListener("click", () => {
-  backgroundFile.value = "";
-  backgroundFile.click();
-  settingsMenu.hidden = true;
-  settingsToggle.setAttribute("aria-expanded", "false");
-});
-
-backgroundFile.addEventListener("change", async () => {
-  const file = backgroundFile.files && backgroundFile.files[0];
-  if (!file) return;
-
-  const dataUrl = await fileToDataUrl(file);
-  window.localStorage.setItem(BG_KEY, dataUrl);
-  applySavedBackground(dataUrl);
-});
-
-historyToggle.addEventListener("change", () => {
-  historyEnabled = historyToggle.checked;
-  window.localStorage.setItem(HISTORY_ENABLED_KEY, String(historyEnabled));
-
-  if (!historyEnabled) {
-    historyPanel.hidden = true;
-  } else if (document.activeElement === input) {
-    renderHistoryPanel();
-  }
-});
-
-window.addEventListener("click", (event) => {
-  if (settingsMenu.hidden) return;
-  if (settingsMenu.contains(event.target) || settingsToggle.contains(event.target)) return;
-  settingsMenu.hidden = true;
-  settingsToggle.setAttribute("aria-expanded", "false");
-});
 
 input.addEventListener("focus", () => {
   renderHistoryPanel();
